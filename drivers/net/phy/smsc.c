@@ -22,6 +22,12 @@
 #include <linux/netdevice.h>
 #include <linux/smscphy.h>
 
+#define ZDYZ_SMSC
+#ifdef ZDYZ_SMSC
+#include <linux/io.h>
+#include <linux/of_gpio.h>
+#endif // ZDYZ_SMSC
+
 /* Vendor-specific PHY Definitions */
 /* EDPD NLP / crossover time configuration */
 #define PHY_EDPD_CONFIG			16
@@ -115,6 +121,7 @@ static int smsc_phy_config_init(struct phy_device *phydev)
 	return rc;
 }
 
+#ifndef ZDYZ_SMSC
 static int smsc_phy_reset(struct phy_device *phydev)
 {
 	int rc = phy_read(phydev, MII_LAN83C185_SPECIAL_MODES);
@@ -133,6 +140,69 @@ static int smsc_phy_reset(struct phy_device *phydev)
 	/* reset the phy */
 	return genphy_soft_reset(phydev);
 }
+#else //ZDYZ_SMSC
+static int smsc_phy_reset(struct phy_device *phydev)
+{
+	int err, phy_reset, rc;
+	int msec = 1;
+	struct device_node *np;
+	int timeout = 50000;
+
+	if(phydev->mdio.addr == 0) /* FEC1  */ {
+		np = of_find_node_by_path("/soc/bus@2100000/ethernet@2188000");
+		if(np == NULL) {
+			return -EINVAL;
+		}
+	}
+
+	if(phydev->mdio.addr == 1) /* FEC2  */ {
+		np = of_find_node_by_path("/soc/bus@2000000/ethernet@20b4000");
+		if(np == NULL) {
+			return -EINVAL;
+		}
+	}
+
+	err = of_property_read_u32(np, "phy-reset-duration", &msec);
+	/* A sane reset duration should not be longer than 1s */
+	if (!err && msec > 1000)
+		msec = 1;
+	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
+	if (!gpio_is_valid(phy_reset))
+		return -1;
+
+	gpio_direction_output(phy_reset, 0);
+	gpio_set_value(phy_reset, 0);
+	msleep(msec);
+	gpio_set_value(phy_reset, 1);
+
+	rc = phy_read(phydev, MII_LAN83C185_SPECIAL_MODES);
+	if (rc < 0)
+		return rc;
+
+	/* If the SMSC PHY is in power down mode, then set it
+	 * in all capable mode before using it.
+	 */
+	if ((rc & MII_LAN83C185_MODE_MASK) == MII_LAN83C185_MODE_POWERDOWN) {
+
+		/* set "all capable" mode and reset the phy */
+		rc |= MII_LAN83C185_MODE_ALL;
+		phy_write(phydev, MII_LAN83C185_SPECIAL_MODES, rc);
+	}
+
+	phy_write(phydev, MII_BMCR, BMCR_RESET);
+	/* wait end of reset (max 500 ms) */
+	
+	do {
+		udelay(10);
+		if (timeout-- == 0)
+			return -1;
+		rc = phy_read(phydev, MII_BMCR);
+	} while (rc & BMCR_RESET);
+
+	return 0;
+}
+
+#endif //ZDYZ_SMSC
 
 static int lan87xx_config_aneg(struct phy_device *phydev)
 {
