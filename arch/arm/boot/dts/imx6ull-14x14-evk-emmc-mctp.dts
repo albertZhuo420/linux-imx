@@ -28,4 +28,10 @@
 		compatible = "mctp-i2c-controller";
 		reg = <(0x50 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
+
+	/*正点原子imx6ull 开发板*/
+	ap3216c@1e {
+		compatible = "alientek,ap3216c";
+		reg = <0x1e>;
+	};
 };
