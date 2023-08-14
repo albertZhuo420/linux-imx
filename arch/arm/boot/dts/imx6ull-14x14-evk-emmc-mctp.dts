@@ -8,6 +8,7 @@
  */
 
 #include "imx6ull-14x14-evk-mctp.dts"
+#include "dt-bindings/i2c/i2c.h"
 
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
@@ -17,4 +18,14 @@
 	bus-width = <8>;
 	non-removable;
 	status = "okay";
+};
+
+&i2c1 {
+	mctp-controller;
+	// status = "okay";
+
+	mctp_i2c1@50 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x50 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 };
