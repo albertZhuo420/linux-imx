@@ -18,6 +18,10 @@ description: |
   busses) are attached to the mctp-i2c-controller with a 'mctp-controller'
   property on each used bus. Each mctp-controller I2C bus will be presented
   to the host system as a separate MCTP I2C instance.
+  mctp-i2c-controller 必须连接到支持从属功能的 I2C 适配器上。
+  I2C 总线（直接或作为从属多路复用器总线）连接到 mctp-i2c 控制器，
+  每条使用的总线上都有一个 "mctp-controller "属性。
+  每条 mctp-controller I2C 总线都将作为单独的 MCTP I2C 实例呈现给主机系统。
 
 properties:
   compatible:
