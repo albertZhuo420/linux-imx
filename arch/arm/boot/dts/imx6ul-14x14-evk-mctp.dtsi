@@ -208,12 +208,17 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		/*
+			正点原子的im6ull的板子使用的PHY型号是: SMSC 的 LAN8720
+		*/
 		ethphy0: ethernet-phy@0 {
 			// compatible = "ethernet-phy-id0022.1560"; // Albert 注释掉
-			compatible = "ethernet-phy-ieee802.3-c22"; // Albert 添加
+			compatible = "ethernet-phy-id0007.c0f0"; // Albert 添加 // 根据 smsc.c代码中的phy_id
+			// compatible = "ethernet-phy-ieee802.3-c22"; // Albert 添加
 			smsc,disable-energy-detect;		// Albert 添加
 			reg = <0>;
-			micrel,led-mode = <1>;
+			// micrel,led-mode = <1>; // Albert 注释掉
+			smsc,led-mode = <1>; // Albert 添加
 			clocks = <&clks IMX6UL_CLK_ENET_REF>;
 			clock-names = "rmii-ref";
 
@@ -221,10 +226,12 @@
 
 		ethphy1: ethernet-phy@1 {
 			// compatible = "ethernet-phy-id0022.1560";	// Albert 注释掉
-			compatible = "ethernet-phy-ieee802.3-c22";	// Albert 添加
+			compatible = "ethernet-phy-id0007.c0f0";	// Albert 添加
+			// compatible = "ethernet-phy-ieee802.3-c22";	// Albert 添加
 			smsc,disable-energy-detect;		// Albert 添加
 			reg = <1>;
-			micrel,led-mode = <1>;
+			// micrel,led-mode = <1>; // Albert 注释掉
+			smsc,led-mode = <1>; // Albert 添加
 			clocks = <&clks IMX6UL_CLK_ENET2_REF>;
 			clock-names = "rmii-ref";
 		};
