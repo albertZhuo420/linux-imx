@@ -73,7 +73,7 @@ struct raw_notifier_head {
 
 struct srcu_notifier_head {
 	struct mutex mutex;
-	struct srcu_struct srcu;
+	struct srcu_struct srcu; // Sleepable Read-Copy Update
 	struct notifier_block __rcu *head;
 };
 
