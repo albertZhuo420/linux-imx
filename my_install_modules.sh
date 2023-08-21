@@ -3,9 +3,9 @@
 function print_usage()
 {
 	echo "***************Usage Start ***************"
-	echo "	./shell.sh b: Use busybox"
+	echo "	./$0 b: Use busybox"
 	echo "		or"
-	echo "	./shell.sh s: Use systemd"
+	echo "	./$0 s: Use systemd"
 	echo "***************Usage End *****************"
 }
 
