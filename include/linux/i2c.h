@@ -386,6 +386,8 @@ enum i2c_slave_event {
 	I2C_SLAVE_WRITE_REQUESTED,
 	I2C_SLAVE_READ_PROCESSED,
 	I2C_SLAVE_WRITE_RECEIVED,
+	I2C_SLAVE_GCALL_REQUESTED, /** 只适用于 intel driver: /drivers/i2c/i2c-slave-mqueue.c 
+								 * 如果和其他代码有冲突, 于此相关的代码都会被删除; */
 	I2C_SLAVE_STOP,
 };
 
