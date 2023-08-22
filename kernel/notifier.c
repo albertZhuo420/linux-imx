@@ -14,11 +14,14 @@
  */
 BLOCKING_NOTIFIER_HEAD(reboot_notifier_list);
 
-/*
- *	Notifier chain core routines.  The exported routines below
- *	are layered on top of these, with appropriate locking added.
+/**
+ * Notifier chain core routines.  The exported routines below
+ * are layered on top of these, with appropriate locking added.
+ *	
+ * 将 n 插入到单向链表, 插入规则如下:
+ * 	- priority要求唯一, 那么如果priority相同就报错: EBUSY;
+ * 	- priority没啥要求, priority越大, 越往前插入;
  */
-
 static int notifier_chain_register(struct notifier_block **nl,
 				   struct notifier_block *n,
 				   bool unique_priority)
