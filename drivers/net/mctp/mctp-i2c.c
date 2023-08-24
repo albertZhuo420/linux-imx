@@ -25,6 +25,13 @@
 #include <net/mctp.h>
 #include <net/mctpdevice.h>
 
+#define VISCORE
+#ifdef VISCORE
+#define pr_vis(fmt, ...) printk(" [%d]VISCORE MCTP: "fmt, __LINE__, ##__VA_ARGS__)
+#else
+#define pri_vis(fmt, ...)
+#endif // VISCORE
+
 /* byte_count is limited to u8 */
 #define MCTP_I2C_MAXBLOCK 255
 /* One byte is taken by source_slave */
@@ -46,7 +53,8 @@ enum {
 	MCTP_I2C_FLOW_STATE_INVALID,
 };
 
-/* List of all struct mctp_i2c_client
+/**
+ * List of all struct mctp_i2c_client
  * Lock protects driver_clients and also prevents adding/removing adapters
  * during mctp_i2c_client probe/remove.
  */
@@ -88,7 +96,7 @@ struct mctp_i2c_dev {
  */
 struct mctp_i2c_client {
 	struct i2c_client *client;
-	u8 lladdr;
+	u8 lladdr; //设备树的节点 mctp_i2c1@50, 那么 lladdr = 0x50 & 0xff;
 
 	struct mctp_i2c_dev *sel;
 	struct list_head devs;
@@ -122,16 +130,19 @@ static struct i2c_adapter *mux_root_adapter(struct i2c_adapter *adap)
 #endif
 }
 
-/* Creates a new i2c slave device attached to the root adapter.
+/**
+ * Creates a new i2c slave device attached to the root adapter.
+ * 创建一个新的 i2c 从设备，并将其连接到根适配器上。
  * Sets up the slave callback.
  * Must be called with a client on a root adapter.
  */
 static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 {
-	struct mctp_i2c_client *mcli = NULL;
+	struct mctp_i2c_client *mcli = NULL; // mctp client
 	struct i2c_adapter *root = NULL;
 	int rc;
-
+	
+	// pr_vis(" %d\n", client->flags); // 32 #define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
 	if (client->flags & I2C_CLIENT_TEN) {
 		dev_err(&client->dev, "failed, MCTP requires a 7-bit I2C address, addr=0x%x\n",
 			client->addr);
@@ -139,13 +150,14 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 		goto err;
 	}
 
+	// pr_vis("%s", client->adapter->name); //  21a0000.i2c 是soc的i2c外设地址;
 	root = mux_root_adapter(client->adapter);
 	if (!root) {
 		dev_err(&client->dev, "failed to find root adapter\n");
 		rc = -ENOENT;
 		goto err;
 	}
-	if (root != client->adapter) {
+	if (root != client->adapter) { // 这一行代码就要求必须要开启: CONFIG_I2C_MUX
 		dev_err(&client->dev,
 			"A mctp-i2c-controller client cannot be placed on an I2C mux adapter.\n"
 			" It should be placed on the mux tree root adapter\n"
@@ -162,10 +174,36 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 	spin_lock_init(&mcli->sel_lock);
 	INIT_LIST_HEAD(&mcli->devs);
 	INIT_LIST_HEAD(&mcli->list);
+
 	mcli->lladdr = client->addr & 0xff;
 	mcli->client = client;
-	i2c_set_clientdata(client, mcli);
+	// pr_vis("%d, %d\n", client->addr, mcli->lladdr); // 设备树的节点 mctp_i2c1@50, 打印出来的就是 80(也就是0x50)
+	
+	i2c_set_clientdata(client, mcli); // dev->driver_data = data; client->dev->driver_data = mcli;
 
+	/**
+	 * mcli->client 就是: mctp_i2c1@50
+	 * 
+	 * i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
+	 * i2c_slave_register(client, slave_cb)
+	 * 		--> client->slave_cb = slave_cb;
+	 * 		--> ret = client->adapter->algo->reg_slave(client);
+	 * 			--> .reg_slave	= i2c_imx_reg_slave, // int i2c_imx_reg_slave(struct i2c_client *client)
+	 * 			--> i2c_imx_reg_slave()
+	 * 				--> struct imx_i2c_struct *i2c_imx = i2c_get_adapdata(client->adapter);
+	 * 				--> i2c_imx->slave = client;
+	 * 				--> i2c_imx_slave_init(i2c_imx);
+	 * 					--> imx_i2c_write_reg((i2c_imx->slave->addr << 1), i2c_imx, IMX_I2C_IADR); // 将mctp_i2c1@50的地址0x50写入i2c控制器的寄存器中;
+	 * 				
+	 * 
+	 * 参考链接: 
+	 * 		https://blog.csdn.net/thisway_diy/article/details/1199067 [韦东山老师的csdn]
+	 * 			- reg_slave/unreg_slave: 有些I2C Adapter也可工作与Slave模式，用来实现或模拟一个I2C设备
+	 * 
+	 * 		https://www.kernel.org/doc/html/latest/i2c/slave-interface.html
+	 * 
+	 * 这一部就完成了 将i2c控制器 slave 模式初始化完成;
+	*/
 	rc = i2c_slave_register(mcli->client, mctp_i2c_slave_cb);
 	if (rc < 0) {
 		dev_err(&client->dev, "i2c register failed %d\n", rc);
@@ -243,25 +281,26 @@ static int mctp_i2c_slave_cb(struct i2c_client *client,
 		return 0;
 
 	switch (event) {
-	case I2C_SLAVE_WRITE_RECEIVED:
-		if (midev->rx_pos < MCTP_I2C_BUFSZ) {
-			midev->rx_buffer[midev->rx_pos] = *val;
-			midev->rx_pos++;
-		} else {
-			midev->ndev->stats.rx_over_errors++;
-		}
+		case I2C_SLAVE_WRITE_RECEIVED:
+			if (midev->rx_pos < MCTP_I2C_BUFSZ) {
+				midev->rx_buffer[midev->rx_pos] = *val;
+				midev->rx_pos++;
+			} 
+			else {
+				midev->ndev->stats.rx_over_errors++;
+			}
 
-		break;
-	case I2C_SLAVE_WRITE_REQUESTED:
-		/* dest_slave as first byte */
-		midev->rx_buffer[0] = mcli->lladdr << 1;
-		midev->rx_pos = 1;
-		break;
-	case I2C_SLAVE_STOP:
-		rc = mctp_i2c_recv(midev);
-		break;
-	default:
-		break;
+			break;
+		case I2C_SLAVE_WRITE_REQUESTED:
+			/* dest_slave as first byte */
+			midev->rx_buffer[0] = mcli->lladdr << 1;
+			midev->rx_pos = 1;
+			break;
+		case I2C_SLAVE_STOP:
+			rc = mctp_i2c_recv(midev);
+			break;
+		default:
+			break;
 	}
 
 	dev_put(midev->ndev);
@@ -375,7 +414,8 @@ mctp_i2c_get_tx_flow_state(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 	 */
 	if (!key->valid) {
 		state = MCTP_I2C_TX_FLOW_INVALID;
-	} else {
+	} 
+	else {
 		switch (key->dev_flow_state) {
 		case MCTP_I2C_FLOW_STATE_NEW:
 			key->dev_flow_state = MCTP_I2C_FLOW_STATE_ACTIVE;
@@ -467,7 +507,8 @@ static void mctp_i2c_xmit(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 	if (skb_tailroom(skb) >= 1) {
 		/* Linear case with space, we can just append the PEC */
 		skb_put(skb, 1);
-	} else {
+	} 
+	else {
 		/* Otherwise need to copy the buffer */
 		skb_copy_bits(skb, 0, midev->tx_scratch, skb->len);
 		hdr = (void *)midev->tx_scratch;
@@ -574,22 +615,26 @@ static int mctp_i2c_tx_thread(void *data)
 			break;
 
 		spin_lock_irqsave(&midev->tx_queue.lock, flags);
+
 		skb = __skb_dequeue(&midev->tx_queue);
-		if (netif_queue_stopped(midev->ndev))
+
+		if (netif_queue_stopped(midev->ndev)) {
 			netif_wake_queue(midev->ndev);
+		}
+		
 		spin_unlock_irqrestore(&midev->tx_queue.lock, flags);
 
 		if (skb == &midev->unlock_marker) {
 			mctp_i2c_flow_release(midev);
-
-		} else if (skb) {
+		} 
+		else if (skb) {
 			mctp_i2c_xmit(midev, skb);
 			kfree_skb(skb);
-
-		} else {
+		} 
+		else {
 			wait_event_idle(midev->tx_wq,
 					!skb_queue_empty(&midev->tx_queue) ||
-				   kthread_should_stop());
+						kthread_should_stop());
 		}
 	}
 
@@ -681,7 +726,8 @@ static void mctp_i2c_net_setup(struct net_device *dev)
 	dev->header_ops		= &mctp_i2c_headops;
 }
 
-/* Populates the mctp_i2c_dev priv struct for a netdev.
+/**
+ * Populates the mctp_i2c_dev priv struct for a netdev.
  * Returns an error pointer on failure.
  */
 static struct mctp_i2c_dev *mctp_i2c_midev_init(struct net_device *dev,
@@ -825,6 +871,15 @@ static int mctp_i2c_add_netdev(struct mctp_i2c_client *mcli,
 		rc = -ENOMEM;
 		goto err;
 	}
+	/**
+	 * 不同的架构都有对应的接口;
+	 * struct task_struct *get_current(void)
+	 * #define current get_current() 
+	 * 
+	 * https://kernel.0voice.com/forum.php?mod=viewthread&tid=3600
+	 * https://www.cnblogs.com/pwl999/p/15534970.html
+	 * https://zhuanlan.zhihu.com/p/27844762
+	*/
 	dev_net_set(ndev, current->nsproxy->net_ns);
 	SET_NETDEV_DEV(ndev, &adap->dev);
 	dev_addr_set(ndev, &mcli->lladdr);
@@ -878,7 +933,8 @@ static void mctp_i2c_remove_netdev(struct mctp_i2c_client *mcli,
 		mctp_i2c_unregister(midev);
 }
 
-/* Determines whether a device is an i2c adapter.
+/**
+ * Determines whether a device is an i2c adapter.
  * Optionally returns the root i2c_adapter
  */
 static struct i2c_adapter *mctp_i2c_get_adapter(struct device *dev,
@@ -909,7 +965,8 @@ static bool mctp_i2c_adapter_match(struct i2c_adapter *adap, bool match_no_of)
 	return of_property_read_bool(adap->dev.of_node, MCTP_I2C_OF_PROP);
 }
 
-/* Called for each existing i2c device (adapter or client) when a
+/**
+ * Called for each existing i2c device (adapter or client) when a
  * new mctp-i2c client is probed.
  */
 static int mctp_i2c_client_try_attach(struct device *dev, void *data)
@@ -922,7 +979,8 @@ static int mctp_i2c_client_try_attach(struct device *dev, void *data)
 		return 0;
 	if (mcli->client->adapter != root)
 		return 0;
-	/* Must either have mctp-controller property on the adapter, or
+	/**
+	 * Must either have mctp-controller property on the adapter, or
 	 * be a root adapter if it's non-devicetree
 	 */
 	if (!mctp_i2c_adapter_match(adap, adap == root))
@@ -980,18 +1038,23 @@ static void mctp_i2c_notify_del(struct device *dev)
 	mutex_unlock(&driver_clients_lock);
 }
 
+/**
+ * 这个client就是: mctp_i2c1@50
+*/
 static int mctp_i2c_probe(struct i2c_client *client)
 {
 	struct mctp_i2c_client *mcli = NULL;
 	int rc;
 
+	// pr_vis("%s\n", client->name); //  设备的 compatible: mctp-i2c-controller
 	mutex_lock(&driver_clients_lock);
 	mcli = mctp_i2c_new_client(client);
 	if (IS_ERR(mcli)) {
 		rc = PTR_ERR(mcli);
 		mcli = NULL;
 		goto out;
-	} else {
+	} 
+	else {
 		list_add(&mcli->list, &driver_clients);
 	}
 
@@ -1034,9 +1097,13 @@ static int mctp_i2c_notifier_call(struct notifier_block *nb,
 		mctp_i2c_notify_del(dev);
 		break;
 	}
+
 	return NOTIFY_DONE;
 }
 
+/**
+ * i2c_bus_type中的通知链的一个节点, 回调函数是 mctp_i2c_notifier_call;
+*/
 static struct notifier_block mctp_i2c_notifier = {
 	.notifier_call = mctp_i2c_notifier_call,
 };
@@ -1068,9 +1135,17 @@ static __init int mctp_i2c_mod_init(void)
 	int rc;
 
 	pr_info("MCTP I2C interface driver\n");
+
+	/**
+	 * i2c_register_driver(THIS_MODULE, &mctp_i2c_driver)
+	*/
 	rc = i2c_add_driver(&mctp_i2c_driver);
 	if (rc < 0)
 		return rc;
+		
+	/**
+	 * 在 i2c_bus_type 的 notifier head 上注册 mctp_i2c_notifier;
+	*/
 	rc = bus_register_notifier(&i2c_bus_type, &mctp_i2c_notifier);
 	if (rc < 0) {
 		i2c_del_driver(&mctp_i2c_driver);
