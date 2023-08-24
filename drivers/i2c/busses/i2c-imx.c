@@ -857,8 +857,7 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 		i2c_imx_slave_finish_op(i2c_imx);
 		if (status & I2SR_SRW) { /* Master wants to read from us*/
 			dev_dbg(&i2c_imx->adapter.dev, "read requested");
-			i2c_imx_slave_event(i2c_imx,
-					    I2C_SLAVE_READ_REQUESTED, &value);
+			i2c_imx_slave_event(i2c_imx, I2C_SLAVE_READ_REQUESTED, &value);
 
 			/* Slave transmit */
 			ctl |= I2CR_MTX;
@@ -868,8 +867,7 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 			imx_i2c_write_reg(value, i2c_imx, IMX_I2C_I2DR);
 		} else { /* Master wants to write to us */
 			dev_dbg(&i2c_imx->adapter.dev, "write requested");
-			i2c_imx_slave_event(i2c_imx,
-					    I2C_SLAVE_WRITE_REQUESTED, &value);
+			i2c_imx_slave_event(i2c_imx, I2C_SLAVE_WRITE_REQUESTED, &value);
 
 			/* Slave receive */
 			ctl &= ~I2CR_MTX;
@@ -877,19 +875,20 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 			/* Dummy read */
 			imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR);
 		}
-	} else if (!(ctl & I2CR_MTX)) { /* Receive mode */
+	} 
+	else if (!(ctl & I2CR_MTX)) { /* Receive mode */
 		value = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR);
-		i2c_imx_slave_event(i2c_imx,
-				    I2C_SLAVE_WRITE_RECEIVED, &value);
-	} else if (!(status & I2SR_RXAK)) { /* Transmit mode received ACK */
+		i2c_imx_slave_event(i2c_imx, I2C_SLAVE_WRITE_RECEIVED, &value);
+	} 
+	else if (!(status & I2SR_RXAK)) { /* Transmit mode received ACK */
 		ctl |= I2CR_MTX;
 		imx_i2c_write_reg(ctl, i2c_imx, IMX_I2C_I2CR);
 
-		i2c_imx_slave_event(i2c_imx,
-				    I2C_SLAVE_READ_PROCESSED, &value);
+		i2c_imx_slave_event(i2c_imx, I2C_SLAVE_READ_PROCESSED, &value);
 
 		imx_i2c_write_reg(value, i2c_imx, IMX_I2C_I2DR);
-	} else { /* Transmit mode received NAK, operation is done */
+	} 
+	else { /* Transmit mode received NAK, operation is done */
 		ctl &= ~I2CR_MTX;
 		imx_i2c_write_reg(ctl, i2c_imx, IMX_I2C_I2CR);
 		imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR);
