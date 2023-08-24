@@ -345,7 +345,7 @@ struct i2c_client {
 	unsigned short addr;		/* chip address - NOTE: 7bit	*/
 					/* addresses are stored in the	*/
 					/* _LOWER_ 7 bits		*/
-	char name[I2C_NAME_SIZE];
+	char name[I2C_NAME_SIZE]; // 就是设备树中的 compatible 参数, 而且有大小限制, 最大20个字节, 有效的只有19个
 	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
 	struct device dev;		/* the device structure		*/
 	int init_irq;			/* irq set at initialization	*/
@@ -530,6 +530,7 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * @functionality: Return the flags that this algorithm/adapter pair supports
  *   from the ``I2C_FUNC_*`` flags.
  * @reg_slave: Register given client to I2C slave mode of this adapter
+ * 				将给定的客户端注册为该适配器的 I2C 从模式。
  * @unreg_slave: Unregister given client from I2C slave mode of this adapter
  *
  * The following structs are for those who like to implement new bus drivers:
