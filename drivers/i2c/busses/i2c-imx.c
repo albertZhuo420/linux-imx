@@ -95,17 +95,40 @@
 
 /* Bits of IMX I2C registers */
 #define I2SR_RXAK	0x01
-#define I2SR_IIF	0x02
-#define I2SR_SRW	0x04
-#define I2SR_IAL	0x10
-#define I2SR_IBB	0x20
-#define I2SR_IAAS	0x40
-#define I2SR_ICF	0x80
+#define I2SR_IIF	0x02 // I2C interrupt. Must be cleared by the software by 
+						 // writing a "0" to it in the interrupt routine.
+						 // 0: No I2C interrupt pending.
+						 // 1: An interrupt is pending.
+
+#define I2SR_SRW	0x04 // Slave read/write. When the I2C is addressed 
+						 // as a slave, IAAS is set, and the slave read/write bit (SRW)
+						 // indicates the value of the R/W command bit of the calling 
+						 // address sent from the master. SRW is valid only when a 
+						 // complete transfer has occurred, no other transfers have 
+						 // been initiated, and the I2C is a slave and has an address match.
+						 // 
+						 // 0: Slave receive, master writing to slave
+						 // 1: Slave transmit, master reading from slave
+
+#define I2SR_IAL	0x10 // Arbitration lost. Set by hardware
+						 // 0: No arbitration lost.
+						 // 1: Arbitration is lost.
+
+#define I2SR_IBB	0x20 // I2C bus busy bit. Indicates the status of the bus.
+#define I2SR_IAAS	0x40 // I2C addressed as a slave bit.
+						 // 0: Not addressed
+						 // 1: Addressed as a slave. Set when its own address (I2C_IADR) matches the calling address.
+#define I2SR_ICF	0x80 // Data transferring bit. While one byte of data is transferred, ICF is cleared.
+						 // 0: Transfer is in progress.
+						 // 1: Transfer is complete.
 #define I2CR_DMAEN	0x02
 #define I2CR_RSTA	0x04
 #define I2CR_TXAK	0x08
 #define I2CR_MTX	0x10
-#define I2CR_MSTA	0x20
+#define I2CR_MSTA	0x20 // Master/Slave mode select bit. If the master loses arbitration, 
+						 // MSTA is cleared without generating a Stop signal.
+						 // 0: Slave mode. Changing MSTA from 1 to 0 generates a Stop and selects Slave mode.
+						 // 1: Master mode. Changing MSTA from 0 to 1 signals a Start on the bus and selects Master mode.
 #define I2CR_IIEN	0x40
 #define I2CR_IEN	0x80
 #define IBIC_BIIE	0x80 /* Bus idle interrupt enable */
@@ -815,10 +838,8 @@ static void i2c_imx_slave_finish_op(struct imx_i2c_struct *i2c_imx)
 	while (i2c_imx->last_slave_event != I2C_SLAVE_STOP) {
 		switch (i2c_imx->last_slave_event) {
 		case I2C_SLAVE_READ_REQUESTED:
-			i2c_imx_slave_event(i2c_imx, I2C_SLAVE_READ_PROCESSED,
-					    &val);
+			i2c_imx_slave_event(i2c_imx, I2C_SLAVE_READ_PROCESSED, &val);
 			break;
-
 		case I2C_SLAVE_WRITE_REQUESTED:
 		case I2C_SLAVE_READ_PROCESSED:
 		case I2C_SLAVE_WRITE_RECEIVED:
@@ -865,7 +886,8 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 
 			/* Send data */
 			imx_i2c_write_reg(value, i2c_imx, IMX_I2C_I2DR);
-		} else { /* Master wants to write to us */
+		} 
+		else { /* Master wants to write to us */
 			dev_dbg(&i2c_imx->adapter.dev, "write requested");
 			i2c_imx_slave_event(i2c_imx, I2C_SLAVE_WRITE_REQUESTED, &value);
 
@@ -883,9 +905,7 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 	else if (!(status & I2SR_RXAK)) { /* Transmit mode received ACK */
 		ctl |= I2CR_MTX;
 		imx_i2c_write_reg(ctl, i2c_imx, IMX_I2C_I2CR);
-
 		i2c_imx_slave_event(i2c_imx, I2C_SLAVE_READ_PROCESSED, &value);
-
 		imx_i2c_write_reg(value, i2c_imx, IMX_I2C_I2DR);
 	} 
 	else { /* Transmit mode received NAK, operation is done */
@@ -1010,22 +1030,20 @@ static irqreturn_t i2c_imx_isr(int irq, void *dev_id)
 	status = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2SR);
 	ctl = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
 
-	if (status & I2SR_IIF) {
-		i2c_imx_clear_irq(i2c_imx, I2SR_IIF);
-		if (i2c_imx->slave) {
-			if (!(ctl & I2CR_MSTA)) {
+	if (status & I2SR_IIF) { // 是否有中断, 有的话就进入这个分支;
+		i2c_imx_clear_irq(i2c_imx, I2SR_IIF); // 先清中断;
+		if (i2c_imx->slave) { // 判断是否有slave client: master的slave模式的软件实现;
+			if (!(ctl & I2CR_MSTA)) { // Slave mode 就进入分支
 				irqreturn_t ret;
 
-				ret = i2c_imx_slave_handle(i2c_imx,
-							   status, ctl);
-				spin_unlock_irqrestore(&i2c_imx->slave_lock,
-						       flags);
+				ret = i2c_imx_slave_handle(i2c_imx, status, ctl);
+				spin_unlock_irqrestore(&i2c_imx->slave_lock, flags);
 				return ret;
 			}
-			i2c_imx_slave_finish_op(i2c_imx);
+			i2c_imx_slave_finish_op(i2c_imx); // 有slave client, 但是 bus 不是 slave mode;
 		}
 		spin_unlock_irqrestore(&i2c_imx->slave_lock, flags);
-		return i2c_imx_master_isr(i2c_imx, status);
+		return i2c_imx_master_isr(i2c_imx, status); // 有slave client, 但是 bus 不是 slave mode;
 	}
 	spin_unlock_irqrestore(&i2c_imx->slave_lock, flags);
 
@@ -1033,7 +1051,7 @@ static irqreturn_t i2c_imx_isr(int irq, void *dev_id)
 }
 
 static int i2c_imx_dma_write(struct imx_i2c_struct *i2c_imx,
-					struct i2c_msg *msgs)
+			     struct i2c_msg *msgs)
 {
 	int result;
 	unsigned long time_left;
