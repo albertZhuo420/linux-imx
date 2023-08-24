@@ -28,6 +28,14 @@
 		compatible = "mctp-i2c-controller";
 		reg = <(0x50 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
+	//
+	// 可能是因为已经有了 mctp_i2c1@50, 如果再加 i2c-slave-mqueue@13, 会报错;
+	// 静态指定
+	// i2c-slave-mqueue@13 {
+	// 	compatible = "slave-mqueue";
+	// 	reg = <(0x13 | I2C_OWN_SLAVE_ADDRESS)>;
+	// 	i2c-protocol;
+	// };
 
 	/*正点原子imx6ull 开发板*/
 	ap3216c@1e {
@@ -35,3 +43,12 @@
 		reg = <0x1e>;
 	};
 };
+
+&i2c2 {
+	// 静态指定
+	// i2c-slave-mqueue@13 {
+	// 	compatible = "slave-mqueue";
+	// 	reg = <(0x13 | I2C_OWN_SLAVE_ADDRESS)>;
+	// 	i2c-protocol;
+	// };
+}
