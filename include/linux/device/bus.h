@@ -80,6 +80,9 @@ struct fwnode_handle;
  * A bus is represented by the bus_type structure. It contains the name, the
  * default attributes, the bus' methods, PM operations, and the driver core's
  * private data.
+ * 
+ * 这个bus_type其实是对kset的一种封装, 或者说是kset的一个子类;
+ * bus_type 在/sys/bus 目录下对应的是一个目录dir;
  */
 struct bus_type {
 	const char		*name;
