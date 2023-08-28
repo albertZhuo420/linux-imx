@@ -24,6 +24,8 @@
 	mctp-controller;
 	// status = "okay";
 
+	// #define I2C_OWN_SLAVE_ADDRESS	(1 << 30)
+	
 	mctp_i2c1@50 {
 		compatible = "mctp-i2c-controller";
 		reg = <(0x50 | I2C_OWN_SLAVE_ADDRESS)>;
@@ -51,4 +53,4 @@
 	// 	reg = <(0x13 | I2C_OWN_SLAVE_ADDRESS)>;
 	// 	i2c-protocol;
 	// };
-}
+};
