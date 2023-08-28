@@ -200,7 +200,7 @@ struct kernfs_node {
 	 * parent directly.
 	 */
 	struct kernfs_node	*parent;
-	const char		*name;
+	const char		*name; // 表示文件, 目录, 或者符号链接的名称;
 
 	struct rb_node		rb;
 
@@ -208,7 +208,7 @@ struct kernfs_node {
 	unsigned int		hash;	/* ns + name hash */
 	union {
 		struct kernfs_elem_dir		dir;
-		struct kernfs_elem_symlink	symlink;
+		struct kernfs_elem_symlink	symlink; // 实现了一个符号链接
 		struct kernfs_elem_attr		attr;
 	};
 
@@ -221,7 +221,7 @@ struct kernfs_node {
 	u64			id;
 
 	unsigned short		flags;
-	umode_t			mode;
+	umode_t			mode; // 该目录项的访问权限信息;
 	struct kernfs_iattrs	*iattr;
 };
 
