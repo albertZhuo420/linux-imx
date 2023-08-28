@@ -477,11 +477,19 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	pr_debug("kobject: '%s' (%p): %s\n",
 		 kobject_name(kobj), kobj, __func__);
 
-	/* search the kset we belong to */
+	/**
+	 * search the kset we belong to 
+	 * 下面这两段代码比较关键:
+	 * 	- 先获取当前kobj的指针;
+	 *  - 如果当前kobj没有设置 kset, 就往父结点去溯源, 直到找到有kset的kobj, 或者找到头了;
+	 */
 	top_kobj = kobj;
 	while (!top_kobj->kset && top_kobj->parent)
 		top_kobj = top_kobj->parent;
 
+	/**
+	 * 最终都没没找到 含有kset 的kobj 就报错退出;
+	*/
 	if (!top_kobj->kset) {
 		pr_debug("kobject: '%s' (%p): %s: attempted to send uevent "
 			 "without kset!\n", kobject_name(kobj), kobj,
