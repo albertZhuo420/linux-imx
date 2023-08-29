@@ -68,7 +68,7 @@ struct kobject {
 	struct kset		*kset;
 	const struct kobj_type	*ktype;
 	struct kernfs_node	*sd; /* sysfs directory entry */
-	struct kref		kref;
+	struct kref		kref;	 /* 引用计数 */
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
 	struct delayed_work	release;
 #endif

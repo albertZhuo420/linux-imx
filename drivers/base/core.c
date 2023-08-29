@@ -3442,6 +3442,8 @@ static void device_remove_class_symlinks(struct device *dev)
  * dev_set_name - set a device name
  * @dev: device
  * @fmt: format string for the device's name
+ * 
+ * 这个函数是给 代表这个device的kobj中的name字段赋值
  */
 int dev_set_name(struct device *dev, const char *fmt, ...)
 {
@@ -3566,11 +3568,20 @@ int device_add(struct device *dev)
 	 * the name, and force the use of dev_name()
 	 */
 	if (dev->init_name) {
+		/**
+		 * 设置 kobj的name
+		*/
 		dev_set_name(dev, "%s", dev->init_name);
-		dev->init_name = NULL;
+		dev->init_name = NULL;	// 这一步把  dev->init_name 设为 NULL,导致下面的
+								// dev->bus->dev_name, dev->id 设置不会被采用
 	}
 
-	/* subsystems can specify simple device enumeration */
+	/**
+	 * subsystems can specify simple device enumeration
+	 * 由于上一步 dev->init_name = NULL, 这一步不会被执行;
+	 * 
+	 * dev_name() 如果 [dev->init_name = NULL], 那么就返回kobj的name;
+	 */
 	if (!dev_name(dev) && dev->bus && dev->bus->dev_name)
 		dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
 
@@ -3581,6 +3592,9 @@ int device_add(struct device *dev)
 
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
+	/**
+	 * 给该device 的父结点的kref += 1;
+	*/
 	parent = get_device(dev->parent);
 	kobj = get_device_parent(dev, parent);
 	if (IS_ERR(kobj)) {
@@ -3615,7 +3629,7 @@ int device_add(struct device *dev)
 	error = device_add_attrs(dev);
 	if (error)
 		goto AttrsError;
-	error = bus_add_device(dev);
+	error = bus_add_device(dev); /* 向bus注册device, 也就是让该device与bus建立联系 **/
 	if (error)
 		goto BusError;
 	error = dpm_sysfs_add(dev);
@@ -3635,8 +3649,11 @@ int device_add(struct device *dev)
 		devtmpfs_create_node(dev);
 	}
 
-	/* Notify clients of device addition.  This call must come
+	/**
+	 * Notify clients of device addition.  This call must come
 	 * after dpm_sysfs_add() and before kobject_uevent().
+	 * 
+	 * 内核通知链
 	 */
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -3661,7 +3678,7 @@ int device_add(struct device *dev)
 		fw_devlink_link_device(dev);
 	}
 
-	bus_probe_device(dev);
+	bus_probe_device(dev); // 匹配驱动
 
 	/*
 	 * If all driver registration is done and a newly added device doesn't
@@ -3754,9 +3771,14 @@ EXPORT_SYMBOL_GPL(device_register);
  * This simply forwards the call to kobject_get(), though
  * we do take care to provide for the case that we get a NULL
  * pointer passed in.
+ * 
+ * 这一部就是给该device的kobj中的kref字段 + 1, 并返回 该device;
  */
 struct device *get_device(struct device *dev)
 {
+	/**
+	 * kobject_get() 这个函数是对 kobj的引用计数 +1;
+	*/
 	return dev ? kobj_to_dev(kobject_get(&dev->kobj)) : NULL;
 }
 EXPORT_SYMBOL_GPL(get_device);

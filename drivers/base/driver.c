@@ -230,6 +230,11 @@ int driver_register(struct device_driver *drv)
 		return -EINVAL;
 	}
 
+	/**
+	 * 当bus 和 drv 都有probe remove shutdown 函数的时候, 
+	 * 要注意bus的优先级要高, 在这里打印一个WARN信息来提示开发者: 
+	 *  - 自己 drv 中的probe  remove shutdown 是否会被真的执行;
+	*/
 	if ((drv->bus->probe && drv->probe) ||
 	    (drv->bus->remove && drv->remove) ||
 	    (drv->bus->shutdown && drv->shutdown))
@@ -242,8 +247,8 @@ int driver_register(struct device_driver *drv)
 			"aborting...\n", drv->name);
 		return -EBUSY;
 	}
-
 	ret = bus_add_driver(drv);
+
 	if (ret)
 		return ret;
 	ret = driver_add_groups(drv, drv->groups);

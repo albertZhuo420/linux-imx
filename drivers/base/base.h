@@ -39,11 +39,16 @@
  */
 struct subsys_private {
 	struct kset subsys;
-	struct kset *devices_kset;
+	struct kset *devices_kset; /* /sys/bus/xxx/devices */
 	struct list_head interfaces;
 	struct mutex mutex;
 
-	struct kset *drivers_kset;
+	struct kset *drivers_kset; /* /sys/bus/xxx/drivers */
+	/**
+	 * klist_devices 与 klist_drivers 用于device 与 driver 匹配;
+	 * 分别使用 bus_add_device() 和 bus_add_driver() 来将device/driver挂载
+	 * 到bus中的 klist_devices 和 klist_drivers;
+	*/
 	struct klist klist_devices;
 	struct klist klist_drivers;
 	struct blocking_notifier_head bus_notifier;
@@ -57,8 +62,8 @@ struct subsys_private {
 
 struct driver_private {
 	struct kobject kobj;
-	struct klist klist_devices;
-	struct klist_node knode_bus;
+	struct klist klist_devices;  /** 一个驱动可以匹配多个device, 驱动是复用的*/
+	struct klist_node knode_bus; /** 将本driver挂载到 bus 上, bus_add_driver()*/
 	struct module_kobject *mkobj;
 	struct device_driver *driver;
 };

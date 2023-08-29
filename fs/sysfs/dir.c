@@ -36,6 +36,11 @@ void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
  * sysfs_create_dir_ns - create a directory for an object with a namespace tag
  * @kobj: object we're creating directory for
  * @ns: the namespace tag to use
+ * 
+ * 这个函数会给 kobj中的 struct kernfs_node *sd 赋值. 
+ * 如果该kobj没有parent, 那么sd就被赋值一个全局变量: struct kernfs_node *sysfs_root_kn;
+ * 
+ * ns: namespace
  */
 int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 {

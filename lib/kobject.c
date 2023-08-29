@@ -624,6 +624,8 @@ EXPORT_SYMBOL(kobject_del);
 /**
  * kobject_get() - Increment refcount for object.
  * @kobj: object.
+ * 
+ * 这一部是给kobj的kfef += 1 之后并返回该kobj;
  */
 struct kobject *kobject_get(struct kobject *kobj)
 {

@@ -39,6 +39,9 @@ static struct kset *system_kset;
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
 
+/**
+ * 将bus的kref
+*/
 static struct bus_type *bus_get(struct bus_type *bus)
 {
 	if (bus) {
@@ -456,6 +459,11 @@ int bus_add_device(struct device *dev)
 				&dev->bus->p->subsys.kobj, "subsystem");
 		if (error)
 			goto out_subsys;
+		
+		/**
+		 * 这一步很重要, 就是将该device 挂在这个bus上的klist_devices链表上, 
+		 * 后面与driver匹配的时候就是遍历这个链表
+		*/
 		klist_add_tail(&dev->p->knode_bus, &bus->p->klist_devices);
 	}
 	return 0;
@@ -607,15 +615,18 @@ int bus_add_driver(struct device_driver *drv)
 	klist_init(&priv->klist_devices, NULL, NULL);
 	priv->driver = drv;
 	drv->p = priv;
-	priv->kobj.kset = bus->p->drivers_kset;
+	priv->kobj.kset = bus->p->drivers_kset; // 关键代码
 	error = kobject_init_and_add(&priv->kobj, &driver_ktype, NULL,
 				     "%s", drv->name);
 	if (error)
 		goto out_unregister;
 
+	/**
+	 * 往bus上挂载driver;
+	*/
 	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
-	if (drv->bus->p->drivers_autoprobe) {
-		error = driver_attach(drv);
+	if (drv->bus->p->drivers_autoprobe) { /* 关键代码: 总线支持自动probe */
+		error = driver_attach(drv); /** 对用的函数有: device_attach() */
 		if (error)
 			goto out_del_list;
 	}
@@ -779,6 +790,10 @@ static struct bus_attribute bus_attr_uevent = __ATTR(uevent, 0200, NULL,
  * Once we have that, we register the bus with the kobject
  * infrastructure, then register the children subsystems it has:
  * the devices and drivers that belong to the subsystem.
+ * 
+ * 会在 /sys/bus/xxx/ 目录下创建:
+ * - 两个文件夹: devices, drivers
+ * - 三个文件: drivers_autoprobe, driver_probe, uevent;
  */
 int bus_register(struct bus_type *bus)
 {
@@ -801,16 +816,22 @@ int bus_register(struct bus_type *bus)
 
 	priv->subsys.kobj.kset = bus_kset;
 	priv->subsys.kobj.ktype = &bus_ktype;
-	priv->drivers_autoprobe = 1;
+	priv->drivers_autoprobe = 1; // 默认设置为1, 意思是bus会自动执行 device 与 driver 的匹配;
 
 	retval = kset_register(&priv->subsys);
 	if (retval)
 		goto out;
 
+	/**
+	 * 创建1个文件: uevent;
+	*/
 	retval = bus_create_file(bus, &bus_attr_uevent);
 	if (retval)
 		goto bus_uevent_fail;
 
+	/**
+	 * 文件夹: devices
+	*/
 	priv->devices_kset = kset_create_and_add("devices", NULL,
 						 &priv->subsys.kobj);
 	if (!priv->devices_kset) {
@@ -818,6 +839,9 @@ int bus_register(struct bus_type *bus)
 		goto bus_devices_fail;
 	}
 
+	/**
+	 * 文件夹: drivers
+	*/
 	priv->drivers_kset = kset_create_and_add("drivers", NULL,
 						 &priv->subsys.kobj);
 	if (!priv->drivers_kset) {
@@ -830,6 +854,9 @@ int bus_register(struct bus_type *bus)
 	klist_init(&priv->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&priv->klist_drivers, NULL, NULL);
 
+	/**
+	 * 创建两个文件: drivers_autoprobe, driver_probe;
+	*/
 	retval = add_probe_files(bus);
 	if (retval)
 		goto bus_probe_files_fail;

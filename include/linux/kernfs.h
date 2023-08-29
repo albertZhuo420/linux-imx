@@ -188,10 +188,10 @@ struct kernfs_elem_attr {
  * active reference.
  */
 struct kernfs_node {
-	atomic_t		count;
-	atomic_t		active;
+	atomic_t count;
+	atomic_t active;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map	dep_map;
+	struct lockdep_map dep_map;
 #endif
 	/*
 	 * Use kernfs_get_parent() and kernfs_name/path() instead of
@@ -199,30 +199,30 @@ struct kernfs_node {
 	 * never moved to a different parent, it is safe to access the
 	 * parent directly.
 	 */
-	struct kernfs_node	*parent;
-	const char		*name; // 表示文件, 目录, 或者符号链接的名称;
+	struct kernfs_node *parent;
+	const char *name; // 表示文件, 目录, 或者符号链接的名称;
 
-	struct rb_node		rb;
+	struct rb_node rb;
 
-	const void		*ns;	/* namespace tag */
-	unsigned int		hash;	/* ns + name hash */
+	const void *ns; /* namespace tag */
+	unsigned int hash; /* ns + name hash */
 	union {
-		struct kernfs_elem_dir		dir;
-		struct kernfs_elem_symlink	symlink; // 实现了一个符号链接
-		struct kernfs_elem_attr		attr;
+		struct kernfs_elem_dir dir;
+		struct kernfs_elem_symlink symlink; // 实现了一个符号链接
+		struct kernfs_elem_attr attr;
 	};
 
-	void			*priv;
+	void *priv;
 
 	/*
 	 * 64bit unique ID.  On 64bit ino setups, id is the ino.  On 32bit,
 	 * the low 32bits are ino and upper generation.
 	 */
-	u64			id;
+	u64 id;
 
-	unsigned short		flags;
-	umode_t			mode; // 该目录项的访问权限信息;
-	struct kernfs_iattrs	*iattr;
+	unsigned short flags;
+	umode_t mode; // 该目录项的访问权限信息;
+	struct kernfs_iattrs *iattr;
 };
 
 /*
@@ -248,21 +248,21 @@ struct kernfs_node *kernfs_root_to_node(struct kernfs_root *root);
 
 struct kernfs_open_file {
 	/* published fields */
-	struct kernfs_node	*kn;
-	struct file		*file;
-	struct seq_file		*seq_file;
-	void			*priv;
+	struct kernfs_node *kn;
+	struct file *file;
+	struct seq_file *seq_file;
+	void *priv;
 
 	/* private fields, do not use outside kernfs proper */
-	struct mutex		mutex;
-	struct mutex		prealloc_mutex;
-	int			event;
-	struct list_head	list;
-	char			*prealloc_buf;
+	struct mutex mutex;
+	struct mutex prealloc_mutex;
+	int event;
+	struct list_head list;
+	char *prealloc_buf;
 
-	size_t			atomic_write_len;
-	bool			mmapped:1;
-	bool			released:1;
+	size_t atomic_write_len;
+	bool mmapped : 1;
+	bool released : 1;
 	const struct vm_operations_struct *vm_ops;
 };
 
@@ -322,12 +322,12 @@ struct kernfs_ops {
  * The kernfs superblock creation/mount parameter context.
  */
 struct kernfs_fs_context {
-	struct kernfs_root	*root;		/* Root of the hierarchy being mounted */
-	void			*ns_tag;	/* Namespace tag of the mount (or NULL) */
-	unsigned long		magic;		/* File system specific magic number */
+	struct kernfs_root *root; /* Root of the hierarchy being mounted */
+	void *ns_tag; /* Namespace tag of the mount (or NULL) */
+	unsigned long magic; /* File system specific magic number */
 
 	/* The following are set/used by kernfs_mount() */
-	bool			new_sb_created;	/* Set to T if we allocated a new sb */
+	bool new_sb_created; /* Set to T if we allocated a new sb */
 };
 
 #ifdef CONFIG_KERNFS

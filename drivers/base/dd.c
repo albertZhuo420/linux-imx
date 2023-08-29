@@ -581,6 +581,9 @@ static int call_driver_probe(struct device *dev, struct device_driver *drv)
 	return ret;
 }
 
+/**
+ * 真正的 device 与 driver probe
+*/
 static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE) &&
@@ -1131,6 +1134,9 @@ static void __driver_attach_async_helper(void *_dev, async_cookie_t cookie)
 	put_device(dev);
 }
 
+/**
+ * @data: struct device_driver *drv
+*/
 static int __driver_attach(struct device *dev, void *data)
 {
 	struct device_driver *drv = data;
