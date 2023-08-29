@@ -1179,6 +1179,11 @@ new_device_store(struct device *dev, struct device_attribute *attr,
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 
+	/**
+	 * echo "slave-mqueue 0x1013" > /sys/bus/i2c/devices/i2c-1/new_device
+	 * 
+	*/
+
 	blank = strchr(buf, ' ');
 	if (!blank) {
 		dev_err(dev, "%s: Missing parameters\n", "new_device");
@@ -1188,10 +1193,10 @@ new_device_store(struct device *dev, struct device_attribute *attr,
 		dev_err(dev, "%s: Invalid device name\n", "new_device");
 		return -EINVAL;
 	}
-	memcpy(info.type, buf, blank - buf);
+	memcpy(info.type, buf, blank - buf); // 获取到 slave-mqueue
 
 	/* Parse remaining parameters, reject extra parameters */
-	res = sscanf(++blank, "%hi%c", &info.addr, &end);
+	res = sscanf(++blank, "%hi%c", &info.addr, &end); // // 获取到 info.addr = 0x1013
 	if (res < 1) {
 		dev_err(dev, "%s: Can't parse I2C address\n", "new_device");
 		return -EINVAL;
@@ -1207,7 +1212,7 @@ new_device_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	if (info.addr & I2C_ADDR_OFFSET_SLAVE) {
-		info.addr &= ~I2C_ADDR_OFFSET_SLAVE;
+		info.addr &= ~I2C_ADDR_OFFSET_SLAVE; // info.addr = 0x13
 		info.flags |= I2C_CLIENT_SLAVE;
 	}
 
@@ -1224,12 +1229,30 @@ new_device_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR_WO(new_device);
+static DEVICE_ATTR_WO(new_device); // struct device_attribute dev_attr_new_device
+/**
+ *  #define DEVICE_ATTR_WO(_name) \
+	 struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+
+	#define __ATTR_WO(_name) {						\
+		.attr	= { .name = __stringify(_name), .mode = 0200 },		\
+		.store	= _name##_store,					\
+	}
+*/
+#if 0
+struct device_attribute dev_attr_new_device = {
+	.attr = {
+		.name = new_device.
+		.mode = 0200
+	},
+	.store = new_device_store,
+}
+#endif
 
 /*
  * And of course let the users delete the devices they instantiated, if
  * they got it wrong. This interface can only be used to delete devices
- * instantiated by i2c_sysfs_new_device above. This guarantees that we
+ * instantiated by i2c_sysfs_new_device[应该是 new_device_store()] above. This guarantees that we
  * don't delete devices to which some kernel code still has references.
  *
  * Parameter checking may look overzealous, but we really don't want
@@ -1288,8 +1311,19 @@ static struct attribute *i2c_adapter_attrs[] = {
 	&dev_attr_delete_device.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(i2c_adapter);
+ATTRIBUTE_GROUPS(i2c_adapter); // static const struct attribute_group i2c_adapter_groups
+/**
+ * #define ATTRIBUTE_GROUPS(_name)					\
+	static const struct attribute_group _name##_group = {		\
+		.attrs = _name##_attrs,					\
+	};								\
+	__ATTRIBUTE_GROUPS(_name)
+*/
 
+
+/**
+ * i2c_register_driver() 函数中会使用 i2c_adapter_type 给 dev.type 赋值;
+*/
 struct device_type i2c_adapter_type = {
 	.groups		= i2c_adapter_groups,
 	.release	= i2c_adapter_dev_release,
@@ -1467,7 +1501,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	dev_set_name(&adap->dev, "i2c-%d", adap->nr);
 	adap->dev.bus = &i2c_bus_type;
-	adap->dev.type = &i2c_adapter_type;
+	adap->dev.type = &i2c_adapter_type; // 关键代码 i2c_adapter_type -> new_device
 	res = device_register(&adap->dev);
 	if (res) {
 		pr_err("adapter '%s': can't register device (%d)\n", adap->name, res);
