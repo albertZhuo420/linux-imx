@@ -42,7 +42,21 @@ extern void proc_sched_show_task(struct task_struct *p,
 extern void proc_sched_set_task(struct task_struct *p);
 #endif
 
-/* Attach to any functions which should be ignored in wchan output. */
+/**
+ *  Attach to any functions which should be ignored in wchan output.
+ * 
+ * __sched和前面的asmlinkage一样都是宏，定义中用了gcc的attributes扩展。
+ * 代码的意思比较简单，就是把带有__sched的函数放到.sched.text段。
+ * 
+ * 上面还有一行注释，解释了为什么要放到.sched.text段，这才是有意思的地方。
+ * 说的是，如果不想让函数在waiting channel中显示出来，就该加上__sched。
+ * 
+ * kernel有个waiting channel，如果用户空间的进程睡眠了，可以查到是停在内
+ * 核空间哪个函数中等待的：
+ * - cat "/proc/<pid>/wchan"
+ * 那显然，.sched.text段的代码是会被wchan忽略的，schedule这个函数是
+ * 不会出现在wchan的结果中的。
+ */
 #define __sched		__section(".sched.text")
 
 /* Linker adds these: start and end of __sched functions */
