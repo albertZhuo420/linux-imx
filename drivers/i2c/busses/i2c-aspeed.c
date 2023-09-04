@@ -25,6 +25,12 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
+/**
+ * 从intel bmc 的linux5.15.0版本的内核代码中移植用于
+ * 支持i2c-slave-mqueue.c的代码;
+*/
+#define VISCORE_MCTP (0)
+
 /* I2C Register */
 #define ASPEED_I2C_FUN_CTRL_REG				0x00
 #define ASPEED_I2C_AC_TIMING_REG1			0x04
@@ -135,6 +141,10 @@ enum aspeed_i2c_slave_state {
 	ASPEED_I2C_SLAVE_READ_PROCESSED,
 	ASPEED_I2C_SLAVE_WRITE_REQUESTED,
 	ASPEED_I2C_SLAVE_WRITE_RECEIVED,
+#if VISCORE_MCTP
+	ASPEED_I2C_SLAVE_GCALL_START,
+	ASPEED_I2C_SLAVE_GCALL_REQUESTED,
+#endif // VISCORE_MCTP
 	ASPEED_I2C_SLAVE_STOP,
 };
 
@@ -165,8 +175,34 @@ struct aspeed_i2c_bus {
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	struct i2c_client		*slave;
 	enum aspeed_i2c_slave_state	slave_state;
+	
+	#if VISCORE_MCTP
+		/* General call */
+		bool general_call;
+	#endif /* VISCORE_MCTP */ 
+
 #endif /* CONFIG_I2C_SLAVE */
 };
+
+#if VISCORE_MCTP
+static bool dump_debug __read_mostly;
+static int dump_debug_bus_id __read_mostly;
+
+#define I2C_HEX_DUMP(bus, addr, flags, buf, len) \
+	do { \
+		if (dump_debug && (bus)->adap.nr == dump_debug_bus_id) { \
+			char dump_info[100] = {0,}; \
+			char task_info[TASK_COMM_LEN]; \
+			get_task_comm(task_info, current); \
+			snprintf(dump_info, sizeof(dump_info), \
+				 "bus_id:%d, addr:0x%02x, flags:0x%02x, task:%s(%d): ", \
+				 (bus)->adap.nr, addr, flags, task_info, \
+				 task_pid_nr(current)); \
+			print_hex_dump(KERN_ERR, dump_info, DUMP_PREFIX_NONE, \
+				       16, 1, buf, len, true); \
+		} \
+	} while (0)
+#endif /* VISCORE_MCTP */
 
 static int aspeed_i2c_reset(struct aspeed_i2c_bus *bus);
 
