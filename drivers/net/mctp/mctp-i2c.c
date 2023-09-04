@@ -942,6 +942,9 @@ static struct i2c_adapter *mctp_i2c_get_adapter(struct device *dev,
 {
 	struct i2c_adapter *root, *adap;
 
+	/**
+	 * 只有 i2c_adapter 才会在其 dev.type 字段被赋值为 &i2c_adapter_type;
+	*/
 	if (dev->type != &i2c_adapter_type)
 		return NULL;
 	adap = to_i2c_adapter(dev);
