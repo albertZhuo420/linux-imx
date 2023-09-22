@@ -82,6 +82,10 @@ drm_of_component_match_add(struct device *master,
 {
 }
 
+/**
+ * 这个函数是imx特有的函数, 使用此版本的内核编译 x86架构的代码的时候, 次函数会报错,
+ * 当时的解决办法是将此函注释掉.
+ */
 static int drm_of_component_probe_with_match(struct device *dev,
 			   struct component_match *match,
 			   int (*compare_of)(struct device *, void *),
