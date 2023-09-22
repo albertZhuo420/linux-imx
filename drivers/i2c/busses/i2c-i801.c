@@ -1643,6 +1643,19 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err, i;
 	struct i801_priv *priv;
 
+#if 0
+	/**
+	 * [okn@localhost ~]$ dmesg | grep -i mctp
+	 * 
+	 * [    5.233300] [MCTP] vendor = 32902
+	 * [    5.233300] [MCTP] device = 31395
+	 * [    5.233301] [MCTP] driver_data = 0
+	*/
+	printk("[MCTP] vendor = %d", id->vendor);
+	printk("[MCTP] device = %d", id->device);
+	printk("[MCTP] driver_data = %d", id->driver_data);
+#endif
+
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
