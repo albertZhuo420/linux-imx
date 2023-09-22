@@ -113,13 +113,21 @@ bool i2c_detect_slave_mode(struct device *dev)
 		u32 reg;
 
 		for_each_child_of_node(dev->of_node, child) {
+			/**
+			 * 在设备树中, i2c的slave addr是用reg来表示的;
+			 * 所以要到子结点中去找reg字段;
+			*/
 			of_property_read_u32(child, "reg", &reg);
 			if (reg & I2C_OWN_SLAVE_ADDRESS) {
 				of_node_put(child);
 				return true;
 			}
 		}
-	} else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
+	} 
+	else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
+		/**
+		 * 这里好像是说ACPI不支持 设置 I2C 的adapter 为 slave mode
+		*/
 		dev_dbg(dev, "ACPI slave is not supported yet\n");
 	}
 	return false;
