@@ -432,6 +432,9 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 	return res;
 }
 
+/**
+ * 应用层的 ioctl 函数最终会陷入到此函数;
+*/
 static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct i2c_client *client = file->private_data;
@@ -806,6 +809,13 @@ static int __init i2c_dev_init(void)
 	}
 	i2c_dev_class->dev_groups = i2c_groups;
 
+	/**
+	 * res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
+	 * 
+	 * 这个是整个代码中最关键的代码, 它注册了一个总线通知链, 然后通过通知链来
+	 * 调用毁掉函数 i2cdev_notifier_call(), 来向内核 register/unregister
+	 * i2c adapter.
+	*/
 	/* Keep track of adapters which will be added or removed later */
 	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
 	if (res)
