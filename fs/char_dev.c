@@ -85,13 +85,20 @@ static int find_dynamic_major(void)
 	return -EBUSY;
 }
 
-/*
+/**
  * Register a single major with a specified minor range.
+ * 
+ * @minorct: 是名minor的range;
  *
  * If major == 0 this function will dynamically allocate an unused major.
  * If major > 0 this function will attempt to reserve the range of minors
  * with given major.
  *
+ * 这个函数的主要功能:
+ * 	1. 先判断预先指定的设备号是否可用;
+ * 	2. kzalloc() 一个 struct char_device_struct 结构体;
+ * 	3. 填充struct char_device_struct;
+ * 	4. 将struct char_device_struct挂在 全局数组chrdevs[]中: chrdevs[i] = cd;
  */
 static struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
@@ -201,7 +208,7 @@ int register_chrdev_region(dev_t from, unsigned count, const char *name)
 {
 	struct char_device_struct *cd;
 	dev_t to = from + count;
-	dev_t n, next;
+	dev_t n, next; // n是设备号(major + minor)
 
 	for (n = from; n < to; n = next) {
 		next = MKDEV(MAJOR(n)+1, 0);
