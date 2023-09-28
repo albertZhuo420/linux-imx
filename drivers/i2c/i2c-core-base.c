@@ -77,6 +77,9 @@ void i2c_transfer_trace_unreg(void)
 	static_branch_dec(&i2c_trace_msg_key);
 }
 
+/**
+ * 返回表示 I2C Spec 中规定的 I2C Speed 的信息;
+*/
 const char *i2c_freq_mode_string(u32 bus_freq_hz)
 {
 	switch (bus_freq_hz) {
@@ -98,6 +101,15 @@ const char *i2c_freq_mode_string(u32 bus_freq_hz)
 }
 EXPORT_SYMBOL_GPL(i2c_freq_mode_string);
 
+/**
+ * 这个 struct i2c_device_id *id 是一个数组;
+ * 
+ * 在躯体的驱动代码中也是数组的形式:
+ * static const struct i2c_device_id i2c_slave_mqueue_id[] = {
+ * 		{ "slave-mqueue", 0 },
+ * 		{ }
+ * };
+*/
 const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
 						const struct i2c_client *client)
 {
@@ -107,12 +119,17 @@ const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
 	while (id->name[0]) {
 		if (strcmp(client->name, id->name) == 0)
 			return id;
-		id++;
+		id++; // 这一步就是明显的数组操作;
 	}
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(i2c_match_id);
 
+/**
+ * 优先匹配 设备树,
+ * 然后匹配 ACPI,
+ * 最后匹配 id_table.
+*/
 static int i2c_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
@@ -127,7 +144,7 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
-	driver = to_i2c_driver(drv);
+	driver = to_i2c_driver(drv); // container_of()
 
 	/* Finally an I2C match */
 	if (i2c_match_id(driver->id_table, client))
@@ -674,6 +691,9 @@ static struct attribute *i2c_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(i2c_dev);
 
+/**
+ * 全局变量: struct bus_type i2c_bus_type
+*/
 struct bus_type i2c_bus_type = {
 	.name		= "i2c",
 	.match		= i2c_device_match,
@@ -683,6 +703,9 @@ struct bus_type i2c_bus_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
+/**
+ * 全局变量: struct device_type i2c_client_type
+*/
 struct device_type i2c_client_type = {
 	.groups		= i2c_dev_groups,
 	.uevent		= i2c_device_uevent,
@@ -699,6 +722,9 @@ EXPORT_SYMBOL_GPL(i2c_client_type);
  * iterators like @device_for_each_child(), you can't assume very much
  * about the nodes you find.  Use this function to avoid oopses caused
  * by wrongly treating some non-I2C device as an i2c_client.
+ * 
+ * 这个函数用来确定 形参 struct device *dev是不是 i2c client device 的父类指针;
+ * 通过比较 全局变量: struct device_type i2c_client_type 的指针来判断;
  */
 struct i2c_client *i2c_verify_client(struct device *dev)
 {
