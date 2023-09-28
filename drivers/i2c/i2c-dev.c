@@ -664,6 +664,9 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 	i2c_dev->cdev.owner = THIS_MODULE;
 
 	device_initialize(&i2c_dev->dev);
+	/**
+	 * 在函数 i2c_add_adapter() 中会对 adap->nr 赋值;
+	*/
 	i2c_dev->dev.devt = MKDEV(I2C_MAJOR, adap->nr);
 	i2c_dev->dev.class = i2c_dev_class;
 	i2c_dev->dev.parent = &adap->dev;
