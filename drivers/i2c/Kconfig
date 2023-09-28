@@ -138,8 +138,6 @@ endif
 if I2C_SLAVE
 config I2C_SLAVE_MQUEUE
 	tristate "I2C mqueue (message queue) slave driver"
-	select I2C_SLAVE_MQUEUE_MESSAGE_SIZE
-	select I2C_SLAVE_MQUEUE_QUEUE_SIZE
 	help
 	  Some protocols over I2C are designed for bi-directional transferring
 	  messages by using I2C Master Write protocol. This driver is used to
