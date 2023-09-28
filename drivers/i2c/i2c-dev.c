@@ -104,12 +104,55 @@ static ssize_t name_show(struct device *dev,
 		return -ENODEV;
 	return sysfs_emit(buf, "%s\n", i2c_dev->adap->name);
 }
+/**
+ * 就是下面的 dev_attr_name
+ * 
+ * #define __ATTR_RO(_name) {						\
+ * 	  .attr	= { .name = __stringify(_name), .mode = 0444 },		\
+ * 	  .show	= _name##_show,						\
+ * }
+ * 
+ * #define DEVICE_ATTR_RO(_name) \
+ *	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
+ *
+ * static DEVICE_ATTR_RO(name) 展开之后的形式就是如下结构体:
+*/
+#if 0
+static struct device_attribute dev_attr_name = {
+	.attr = { .name = __stringify(name), .mode = 0444 },
+	.show = name_show;
+}
+#endif /** 0 */
 static DEVICE_ATTR_RO(name);
 
 static struct attribute *i2c_attrs[] = {
 	&dev_attr_name.attr,
 	NULL,
 };
+/**
+ * #define __ATTRIBUTE_GROUPS(_name)				\
+ * static const struct attribute_group *_name##_groups[] = {	\
+ * 		&_name##_group,						\
+ * 		NULL,							\
+ * }
+ * 
+ * #define ATTRIBUTE_GROUPS(_name)					\
+ * static const struct attribute_group _name##_group = {		\
+ * 		.attrs = _name##_attrs,					\
+ * };								\
+ * __ATTRIBUTE_GROUPS(_name)
+ * 
+ * ATTRIBUTE_GROUPS(i2c); 展开之后的原型就是如下形态:
+*/
+#if 0
+static const struct attribute_group i2c_group = {
+  	.attrs = i2c_attrs,
+};
+static const struct attribute_group *i2c_groups[] = {
+	&i2c_group,
+	NULL,
+}
+#endif /** 0 */
 ATTRIBUTE_GROUPS(i2c);
 
 /* ------------------------------------------------------------------------- */
@@ -631,13 +674,16 @@ static const struct file_operations i2cdev_fops = {
 	.unlocked_ioctl	= i2cdev_ioctl,
 	.compat_ioctl	= compat_i2cdev_ioctl,
 	.open		= i2cdev_open,
-	.release	= i2cdev_release,
+	.release	= i2cdev_release, // 注意区分下面的i2cdev_dev_release
 };
 
 /* ------------------------------------------------------------------------- */
 
-static struct class *i2c_dev_class;
+static struct class *i2c_dev_class; // static 全局变量;
 
+/**
+ * 注意区分 struct file_operations 中的 release函数指针 i2cdev_release;
+*/
 static void i2cdev_dev_release(struct device *dev)
 {
 	struct i2c_dev *i2c_dev;
@@ -660,6 +706,10 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
 
+	/**
+	 * i2cdev_fops;
+	 * 为cdev注册一个 file_operations, 就是一系列的操作函数;
+	*/
 	cdev_init(&i2c_dev->cdev, &i2cdev_fops);
 	i2c_dev->cdev.owner = THIS_MODULE;
 
@@ -670,6 +720,13 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 	i2c_dev->dev.devt = MKDEV(I2C_MAJOR, adap->nr);
 	i2c_dev->dev.class = i2c_dev_class;
 	i2c_dev->dev.parent = &adap->dev;
+	/**
+	 * @release: Callback to free the device after all references have
+ 	 * 		gone away. This should be set by the allocator of the
+ 	 * 		device (i.e. the bus driver that discovered the device).
+	 *  
+	 * release函数指针在内核中的解释;
+	*/
 	i2c_dev->dev.release = i2cdev_dev_release;
 
 	res = dev_set_name(&i2c_dev->dev, "i2c-%d", adap->nr);
