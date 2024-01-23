@@ -171,4 +171,6 @@ sphinx_*/
 /rust-project.json
 
 #################
-my_tmp
+tmp
+# 提交settings.json
+!.vscode/
