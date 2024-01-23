@@ -83,6 +83,9 @@
 		/* 屏蔽掉不用的DTB文件 */
 		"arch/arm/boot/dts/[a-h]*": true,
 		"arch/arm/boot/dts/[j-z]*": true,
+		"arch/arm/boot/dts/int[a-z]*": true,
+		"arch/arm/boot/dts/imx[1-5]*": true,
+		"arch/arm/boot/dts/imx[7-9]*": true,
 		"arch/arm/boot/dts/imx6-[a-s]*": true,
 		"arch/arm/boot/dts/imx6d[a-s]*": true,
 		"arch/arm/boot/dts/imx6q-[a-z]*": true,
