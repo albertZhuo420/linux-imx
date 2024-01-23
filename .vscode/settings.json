@@ -104,8 +104,15 @@
 		// "arch/arm/boot/dts/s[u-z]*": true,
 		// "arch/arm/boot/dts/st[a-l]*": true,
 		// "arch/arm/boot/dts/st[n-z]*": true,
-		
 		"arch/arm/boot/dts/*.tmp": true,
+
+		".checked*":true,
+		".[t-z]*":true,
+		".m[a-z]*":true,
+		".gitatt*":true,
+		".clang-format":true,
+		".cocciconfig":true,
+		".get_maintainer.ignore":true,
 	},
 	"files.associations": {},
 	// "C_Cpp.errorSquiggles": "disabled"
